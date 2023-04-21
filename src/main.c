@@ -34,6 +34,9 @@
 #define STACK_SIZE_FOR_TASK    (configMINIMAL_STACK_SIZE + 10)
 #define TASK_PRIORITY          (tskIDLE_PRIORITY + 1)
 
+//Adreça APSD-9960 sparkfun --> 0x39
+//https://github.com/sparkfun/APDS-9960_RGB_and_Gesture_Sensor
+
 /* Structure with parameters for LedBlink */
 typedef struct {
   /* Delay between blink of led */
