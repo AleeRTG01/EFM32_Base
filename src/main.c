@@ -36,7 +36,6 @@
 
 //Adreça APSD-9960 sparkfun --> 0x39
 //https://github.com/sparkfun/APDS-9960_RGB_and_Gesture_Sensor
-// Bona tarda
 
 /* Structure with parameters for LedBlink */
 typedef struct {
