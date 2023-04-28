@@ -24,6 +24,7 @@ void BSP_I2C_Init(uint8_t addr) {
 
 
 	xSemaphore = xSemaphoreCreateBinary();
+	xSemaphoreGive( xSemaphore );
 }
 
 /**
@@ -107,11 +108,11 @@ bool I2C_ReadRegister(uint8_t reg, uint8_t *val) {
 bool I2C_Test() {
 	uint8_t data;
 
-	I2C_ReadRegister(0xD0, &data);
+	I2C_ReadRegister(0x92, &data);
 
 	printf("I2C: %02X\n", data);
 
-	if (data == 0x60) {
+	if (data == 0xAB) {
 		return true;
 	} else {
 		return false;

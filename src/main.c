@@ -30,6 +30,7 @@
 #include "bsp_trace.h"
 
 #include "sleep.h"
+#include "I2C.h"
 
 #define STACK_SIZE_FOR_TASK    (configMINIMAL_STACK_SIZE + 10)
 #define TASK_PRIORITY          (tskIDLE_PRIORITY + 1)
@@ -49,20 +50,71 @@ typedef struct {
  * @brief Simple task which is blinking led
  * @param *pParameters pointer to parameters passed to the function
  ******************************************************************************/
+
 static void LedBlink(void *pParameters)
 {
   TaskParams_t     * pData = (TaskParams_t*) pParameters;
   const portTickType delay = pData->delay;
-
+  printf("Hola\n");
+  //bool status = false;
+  //status = I2C_Test();
+  //printf("Estate: %d\n", status);
   for (;; ) {
     BSP_LedToggle(pData->ledNo);
     vTaskDelay(delay);
   }
 }
 
+int _write(int file, const char *ptr, int len) {
+    int x;
+    for (x = 0; x < len; x++) {
+       ITM_SendChar (*ptr++);
+    }
+    return (len);
+}
+
+void printStatus(void *pParameters)
+{
+	while(1) {
+	  bool status = false;
+	  status = I2C_Test();
+	  printf("State: %d\n", status);
+	  vTaskDelay(500);
+
+	}
+}
+
+void detectarColor(void *pParameters)
+{
+	uint8_t data = 3;
+
+	I2C_WriteRegister(0x80, data);
+	uint16_t infoRed, infoGreen, infoBlue;
+	uint8_t redLow, redHigh, greenLow, greenHigh, blueLow, blueHigh;
+	I2C_ReadRegister(0x96, &redLow);
+	I2C_ReadRegister(0x97, &redHigh);
+
+	I2C_ReadRegister(0x98, &greenLow);
+	I2C_ReadRegister(0x99, &greenHigh);
+
+	I2C_ReadRegister(0x9A, &blueLow);
+	I2C_ReadRegister(0x9B, &blueHigh);
+
+	infoRed = ((uint16_t)redHigh << 8) | redLow;
+	infoGreen = ((uint16_t)greenHigh << 8) | greenLow;
+	infoBlue = ((uint16_t)blueHigh << 8) | blueLow;
+
+
+
+	printf("I2C: %02X\n", data);
+
+
+
+}
 /***************************************************************************//**
  * @brief  Main function
  ******************************************************************************/
+
 int main(void)
 {
   /* Chip errata */
@@ -70,6 +122,7 @@ int main(void)
   /* If first word of user data page is non-zero, enable Energy Profiler trace */
   BSP_TraceProfilerSetup();
 
+  BSP_I2C_Init(0x39 << 1);
   /* Initialize LED driver */
   BSP_LedsInit();
   /* Setting state of leds*/
@@ -90,8 +143,10 @@ int main(void)
   /*Create two task for blinking leds*/
   xTaskCreate(LedBlink, (const char *) "LedBlink1", STACK_SIZE_FOR_TASK, &parametersToTask1, TASK_PRIORITY, NULL);
   xTaskCreate(LedBlink, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, &parametersToTask2, TASK_PRIORITY, NULL);
+  xTaskCreate(printStatus, (const char *) "printSatus", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
 
   /*Start FreeRTOS Scheduler*/
+
   vTaskStartScheduler();
 
   return 0;
