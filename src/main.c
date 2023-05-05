@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "string.h"
 
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
@@ -34,6 +35,9 @@
 
 #define STACK_SIZE_FOR_TASK    (configMINIMAL_STACK_SIZE + 10)
 #define TASK_PRIORITY          (tskIDLE_PRIORITY + 1)
+
+QueueHandle_t queueColors;
+QueueHandle_t queueDistancia;
 
 //Adreça APSD-9960 sparkfun --> 0x39
 //https://github.com/sparkfun/APDS-9960_RGB_and_Gesture_Sensor
@@ -84,32 +88,98 @@ void printStatus(void *pParameters)
 	}
 }
 
-void detectarColor(void *pParameters)
+void obtenirColor(void *pParameters)
 {
-	uint8_t data = 3;
+	uint8_t data = 7;
 
 	I2C_WriteRegister(0x80, data);
+	I2C_WriteRegister(0x81, 182);
 	uint16_t infoRed, infoGreen, infoBlue;
 	uint8_t redLow, redHigh, greenLow, greenHigh, blueLow, blueHigh;
-	I2C_ReadRegister(0x96, &redLow);
-	I2C_ReadRegister(0x97, &redHigh);
+	char rgb = 'r';
 
-	I2C_ReadRegister(0x98, &greenLow);
-	I2C_ReadRegister(0x99, &greenHigh);
+	while(1)
+	{
+		I2C_ReadRegister(0x96, &redLow);
+		I2C_ReadRegister(0x97, &redHigh);
 
-	I2C_ReadRegister(0x9A, &blueLow);
-	I2C_ReadRegister(0x9B, &blueHigh);
+		I2C_ReadRegister(0x98, &greenLow);
+		I2C_ReadRegister(0x99, &greenHigh);
 
-	infoRed = ((uint16_t)redHigh << 8) | redLow;
-	infoGreen = ((uint16_t)greenHigh << 8) | greenLow;
-	infoBlue = ((uint16_t)blueHigh << 8) | blueLow;
+		I2C_ReadRegister(0x9A, &blueLow);
+		I2C_ReadRegister(0x9B, &blueHigh);
 
-
-
-	printf("I2C: %02X\n", data);
-
+		infoRed = ((uint16_t)redHigh << 8) | redLow;
+		infoGreen = ((uint16_t)greenHigh << 8) | greenLow;
+		infoBlue = ((uint16_t)blueHigh << 8) | blueLow;
 
 
+		/*printf("Color Vermell: %u \n",infoRed);
+		printf("Color Verd: %u\n",infoGreen);
+		printf("Color Blau: %u\n",infoBlue);*/
+
+
+		if ((infoRed > infoGreen) && (infoRed > infoBlue) )
+		{
+			rgb = 'r';
+		}
+		else if ((infoGreen > infoRed) && (infoGreen > infoBlue) )
+		{
+			rgb = 'g';
+		}
+		else
+			rgb = 'b';
+
+		if (xQueueSend (queueColors, (char *) &rgb, portMAX_DELAY) != pdPASS)
+		{
+			printf("Error en l'enviament del color");
+		}
+
+		vTaskDelay(100);
+	}
+
+}
+
+void obtenirDistancia(void *pParameters)
+{
+	uint8_t data = 7;
+
+	I2C_WriteRegister(0x80, data);
+	I2C_WriteRegister(0x8E, 193);
+	uint8_t proximityData;
+
+	while(1)
+	{
+		I2C_ReadRegister(0x9C, &proximityData);
+
+		//printf("Distancia: %u \n",proximityData);
+
+		vTaskDelay(100);
+	}
+
+}
+
+void printResultats(void *pParameters)
+{
+	while(1)
+	{
+		char dataColors;
+		if (xQueueReceive(queueColors, &dataColors, 0) == pdPASS)
+		{
+			switch(dataColors)
+			{
+			case 'r':
+				printf("Color predominant: vermell\n");
+				break;
+			case 'g':
+				printf("Color predominant: green\n");
+				break;
+			case 'b':
+				printf("Color predominant: blue\n");
+				break;
+			}
+		}
+	}
 }
 /***************************************************************************//**
  * @brief  Main function
@@ -119,6 +189,11 @@ int main(void)
 {
   /* Chip errata */
   CHIP_Init();
+
+  //Queue
+
+  queueColors = xQueueCreate(10, sizeof(uint16_t));
+  queueDistancia = xQueueCreate(10, sizeof(uint8_t));
   /* If first word of user data page is non-zero, enable Energy Profiler trace */
   BSP_TraceProfilerSetup();
 
@@ -144,7 +219,9 @@ int main(void)
   xTaskCreate(LedBlink, (const char *) "LedBlink1", STACK_SIZE_FOR_TASK, &parametersToTask1, TASK_PRIORITY, NULL);
   xTaskCreate(LedBlink, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, &parametersToTask2, TASK_PRIORITY, NULL);
   xTaskCreate(printStatus, (const char *) "printSatus", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
-
+  xTaskCreate(obtenirColor, (const char *) "printColor", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  xTaskCreate(printResultats, (const char *) "printColor", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  //xTaskCreate(obtenirDistancia, (const char *) "printDistance", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
   /*Start FreeRTOS Scheduler*/
 
   vTaskStartScheduler();
