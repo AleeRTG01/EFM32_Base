@@ -83,7 +83,7 @@ void printStatus(void *pParameters)
 	  bool status = false;
 	  status = I2C_Test();
 	  printf("State: %d\n", status);
-	  vTaskDelay(500);
+	  vTaskDelay(1000);
 
 	}
 }
@@ -96,7 +96,7 @@ void obtenirColor(void *pParameters)
 	I2C_WriteRegister(0x81, 182);
 	uint16_t infoRed, infoGreen, infoBlue;
 	uint8_t redLow, redHigh, greenLow, greenHigh, blueLow, blueHigh;
-	char rgb = 'r';
+	char rgb;
 
 	while(1)
 	{
@@ -169,6 +169,7 @@ void printResultats(void *pParameters)
 	{
 		char dataColors;
 		uint8_t proximityData;
+
 		if (xQueueReceive(queueColors, &dataColors, 0) == pdPASS)
 		{
 			switch(dataColors)
@@ -184,10 +185,29 @@ void printResultats(void *pParameters)
 					break;
 			}
 		}
+		vTaskDelay(10);
 		if (xQueueReceive(queueDistancia, &proximityData, 0) == pdPASS)
 		{
-			printf("Distancia: %u \n",proximityData);
+			if((proximityData <= 255)&& (proximityData > 150))
+			{
+				printf("Molt a prop\n");
+			}
+			else if ((proximityData <= 150)&& (proximityData > 25))
+			{
+				printf("A prop\n");
+			}
+			else if ((proximityData <= 25)&& (proximityData > 10))
+			{
+				printf("Lluny\n");
+			}
+			else
+			{
+				printf("Molt lluny\n");
+			}
+
+			//printf("Distancia: %u \n",proximityData);
 		}
+
 	}
 }
 /***************************************************************************//**
@@ -200,7 +220,7 @@ int main(void)
   CHIP_Init();
 
   //Queue
-  queueColors = xQueueCreate(10, sizeof(uint16_t));
+  queueColors = xQueueCreate(10, sizeof(char));
   queueDistancia = xQueueCreate(10, sizeof(uint8_t));
 
   /* If first word of user data page is non-zero, enable Energy Profiler trace */
