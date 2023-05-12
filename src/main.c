@@ -39,7 +39,7 @@
 QueueHandle_t queueColors;
 QueueHandle_t queueDistancia;
 
-//Adreça APSD-9960 sparkfun --> 0x39
+//AdreÃ§a APSD-9960 sparkfun --> 0x39
 //https://github.com/sparkfun/APDS-9960_RGB_and_Gesture_Sensor
 
 /* Structure with parameters for LedBlink */
@@ -119,11 +119,11 @@ void obtenirColor(void *pParameters)
 		printf("Color Blau: %u\n",infoBlue);*/
 
 
-		if ((infoRed > infoGreen) && (infoRed > infoBlue) )
+		if ((infoRed > infoGreen) && (infoRed > infoBlue))
 		{
 			rgb = 'r';
 		}
-		else if ((infoGreen > infoRed) && (infoGreen > infoBlue) )
+		else if ((infoGreen > infoRed) && (infoGreen > infoBlue))
 		{
 			rgb = 'g';
 		}
@@ -152,6 +152,10 @@ void obtenirDistancia(void *pParameters)
 	{
 		I2C_ReadRegister(0x9C, &proximityData);
 
+		if (xQueueSend (queueDistancia, (uint8_t *) &proximityData, portMAX_DELAY) != pdPASS)
+		{
+			printf("Error en l'enviament de la distancia");
+		}
 		//printf("Distancia: %u \n",proximityData);
 
 		vTaskDelay(100);
@@ -164,20 +168,25 @@ void printResultats(void *pParameters)
 	while(1)
 	{
 		char dataColors;
+		uint8_t proximityData;
 		if (xQueueReceive(queueColors, &dataColors, 0) == pdPASS)
 		{
 			switch(dataColors)
 			{
-			case 'r':
-				printf("Color predominant: vermell\n");
-				break;
-			case 'g':
-				printf("Color predominant: green\n");
-				break;
-			case 'b':
-				printf("Color predominant: blue\n");
-				break;
+				case 'r':
+					printf("Color predominant: vermell\n");
+					break;
+				case 'g':
+					printf("Color predominant: green\n");
+					break;
+				case 'b':
+					printf("Color predominant: blue\n");
+					break;
 			}
+		}
+		if (xQueueReceive(queueDistancia, &proximityData, 0) == pdPASS)
+		{
+			printf("Distancia: %u \n",proximityData);
 		}
 	}
 }
@@ -191,9 +200,9 @@ int main(void)
   CHIP_Init();
 
   //Queue
-
   queueColors = xQueueCreate(10, sizeof(uint16_t));
   queueDistancia = xQueueCreate(10, sizeof(uint8_t));
+
   /* If first word of user data page is non-zero, enable Energy Profiler trace */
   BSP_TraceProfilerSetup();
 
@@ -220,10 +229,10 @@ int main(void)
   xTaskCreate(LedBlink, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, &parametersToTask2, TASK_PRIORITY, NULL);
   xTaskCreate(printStatus, (const char *) "printSatus", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
   xTaskCreate(obtenirColor, (const char *) "printColor", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  xTaskCreate(obtenirDistancia, (const char *) "printDistance", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
   xTaskCreate(printResultats, (const char *) "printColor", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
-  //xTaskCreate(obtenirDistancia, (const char *) "printDistance", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  
   /*Start FreeRTOS Scheduler*/
-
   vTaskStartScheduler();
 
   return 0;
